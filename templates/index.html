@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <title>We Gem?</title>
+  </head>
+  <body>
+    <div class="container mt-5">
+      <h1>När ska vi förlora ELO?</h1>
+      {% if user %}
+        <p>Vald gäjmer: {{ user }}</p>
+        <a href="/logout" class="btn btn-warning mb-3">Logga ut</a>
+      {% else %}
+        <a href="/select_user" class="btn btn-secondary mb-3">Välj Gäjmer</a>
+      {% endif %}
+      <form action="/add" method="POST">
+        <div class="form-row">
+          <div class="col">
+            <input type="date" class="form-control" name="date" required>
+          </div>
+          <div class="col">
+            <input type="time" class="form-control" name="time" required>
+          </div>
+          <div class="col">
+            <input type="text" class="form-control" name="name" placeholder="Vad ska vi spela?" required>
+          </div>
+          <div class="col">
+            <button type="submit" class="btn btn-primary">Jag vill spel!</button>
+          </div>
+        </div>
+      </form>
+      <hr>
+      <div class="mt-3">
+        {% for session in sessions %}
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">{{ session.name }}</h5>
+              <p class="card-text">
+                Datum: {{ session.date.strftime('%Y-%m-%d') }} <br>
+                Tid: {{ session.time }} <br>
+                Hungriga Gäjmers: {{ session.attendees }}
+              </p>
+              <a href="/attend/{{ session.id }}" class="btn btn-primary">
+                {{ 'Jag har en ursäkt' if user in session.attendees.split(',') else 'Tryck för HS' }}
+              </a>
+              <form action="/delete_session/{{ session.id }}" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-danger">Ta bort</button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </body>
+</html>
