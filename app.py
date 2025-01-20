@@ -13,6 +13,7 @@ class Session(db.Model):
     time = db.Column(db.String(10), nullable=False)
     name = db.Column(db.String(50), nullable=False)
     attendees = db.Column(db.String(250), nullable=True)
+    creator = db.Column(db.String(50), nullable=False)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -63,13 +64,19 @@ def logout():
 
 @app.route('/add', methods=['POST'])
 def add():
+    if 'user' not in login_session:
+        return redirect(url_for('select_user'))
+    
     date = datetime.strptime(request.form['date'], '%Y-%m-%d')
     time = request.form['time']
     name = request.form['name']
-    new_session = Session(date=date, time=time, name=name, attendees='')
+    creator = login_session['user']
+
+    new_session = Session(date=date, time=time, name=name, attendees='', creator=creator)
     db.session.add(new_session)
     db.session.commit()
     return redirect(url_for('index'))
+
 
 
 @app.route('/delete_session/<int:id>', methods=['POST'])
@@ -85,7 +92,6 @@ def delete_session(id):
 def attend(id):
     if 'user' not in login_session:
         return redirect(url_for('select_user'))
-    #session = Session.query.get(id)
     session = db.session.get(Session, id)
     attendees = session.attendees.split(',') if session.attendees else []
     if login_session['user'] not in attendees:
@@ -95,6 +101,8 @@ def attend(id):
     session.attendees = ','.join(attendees)
     db.session.commit()
     return redirect(url_for('index'))
+
+
 
 if __name__ == '__main__':
     with app.app_context():
