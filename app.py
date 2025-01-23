@@ -21,7 +21,7 @@ class User(db.Model):
 
 @app.route('/')
 def index():
-    sessions = Session.query.filter(Session.date >= datetime.now().date()).all()
+    sessions = Session.query.filter(Session.date >= datetime.now().date()).order_by(Session.date.asc()).all()
     for session in sessions:
         session.days_left = (session.date - datetime.now().date()).days
     return render_template('index.html', sessions=sessions, user=login_session.get('user'))
@@ -72,7 +72,7 @@ def add():
     name = request.form['name']
     creator = login_session['user']
 
-    new_session = Session(date=date, time=time, name=name, attendees='', creator=creator)
+    new_session = Session(date=date, time=time, name=name, attendees=creator+'', creator=creator)
     db.session.add(new_session)
     db.session.commit()
     return redirect(url_for('index'))
