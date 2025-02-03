@@ -23,6 +23,7 @@ class Session(db.Model):
     name = db.Column(db.String(50), nullable=False)
     attendees = db.Column(db.String(250), nullable=True)
     creator = db.Column(db.String(50), nullable=False)
+    
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -30,6 +31,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -54,7 +56,6 @@ def send_notification_email(session):
         print("SMTP configuration is not set.")
         return
 
-    
     subject = "Någon vill panga HS!"
     body = (f"Be there or be a fyrkant!!!\n\n"
             f"Spel: {session.name}\n"
@@ -62,24 +63,28 @@ def send_notification_email(session):
             f"Tid: {session.time}\n"
             f"HerreSkapare: {session.creator}\n")
 
-    
     sender_name = "HSGeneralen"
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = f"{sender_name} <{smtp_config.smtp_username}>"
+    sender_email = smtp_config.smtp_username
 
     recipient_emails = [user.email for user in User.query.filter(User.email.isnot(None)).all()]
-    msg["To"] = ", ".join(recipient_emails)
 
     try:
-        
         with smtplib.SMTP(smtp_config.smtp_server, int(smtp_config.smtp_port)) as server:
             server.starttls()
             server.login(smtp_config.smtp_username, smtp_config.smtp_password)
-            server.send_message(msg)
-        print("Notification email sent successfully.")
+
+            for recipient in recipient_emails:
+                msg = MIMEText(body)
+                msg["Subject"] = subject
+                msg["From"] = f"{sender_name} <{sender_email}>"
+                msg["To"] = recipient  # Skickar individuellt
+
+                server.sendmail(sender_email, recipient, msg.as_string())
+
+        print("Notification emails sent successfully.")
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        print(f"Failed to send emails: {e}")
+
 
 @app.route('/')
 @login_required

@@ -19,13 +19,13 @@
         <a href="/select_user" class="btn btn-secondary mb-3">Välj Gäjmer</a>
       {% endif %} -->
       {% if current_user.is_authenticated %}
-        <p>Logged in as: {{ current_user.name }}</p>
+        <p>Inloggad Gäjmer: {{ current_user.name }}</p>
         <a href="/logout" class="btn btn-warning mb-3">Logga ut</a>
       {% else %}
-        <a href="/login" class="btn btn-secondary mb-3">Log in</a>
+        <a href="/login" class="btn btn-secondary mb-3">Logga in</a>
       {% endif %}
       {% if current_user.is_admin %}
-      <a href="/config" class="btn btn-secondary mb-3">SMTP Configuration</a>
+      <a href="/config" class="btn btn-secondary mb-3">SMTP inställningar</a>
       {% endif %}
 
       <form action="/add" method="POST">
@@ -40,11 +40,23 @@
             <input type="text" class="form-control" name="name" placeholder="Vad ska vi spela?" required>
           </div>
           <div class="col">
-            <button type="submit" class="btn btn-primary">Jag vill spel!</button>
+            <!--<button type="submit" class="btn btn-primary">Jag vill spel!</button> -->
+
+            <div id="loading-indicator">
+              <div class="loading-spinner"></div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="play-button" onclick="showLoading()">Jag vill spel!</button>
+            <script>
+            function showLoading() {
+              document.getElementById('loading-indicator').style.display = 'block';
+              document.getElementById('play-button').classList.add('hidden');
+            }
+            </script>
           </div>
         </div>
       </form>
       <hr>
+      
       <div class="mt-3">
         {% for session in sessions %}
         <div class="card mb-3 {% if session.attendees and session.attendees.split(',')|length >= 5 %}highlight{% endif %}">
