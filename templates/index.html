@@ -27,6 +27,7 @@
       {% if current_user.is_admin %}
       <a href="/config" class="btn btn-secondary mb-3">SMTP inställningar</a>
       {% endif %}
+      <a href="/stats" class="btn btn-info mb-3">Statistik</a>
 
       <form action="/add" method="POST">
         <div class="form-row">
@@ -66,14 +67,20 @@
               Datum: {{ session.date.strftime('%Y-%m-%d') }} <br>
               Tid: {{ session.time }} <br>
               Hungriga Gäjmers: <strong>{{ session.attendees }}</strong> <br>
+              Alagare: <strong>{{ session.substitutes }}</strong> <br>
               HerreSkapare: <strong>{{ session.creator }} </strong>
             </p>
             <a href="/attend/{{ session.id }}" class="btn btn-primary">
-              {{ 'Jag har en ursäkt' if user in session.attendees.split(',') else 'Tryck för HS' }}
+              {{ 'Jag har en ursäkt' if current_user.name in session.attendees.split(',') else 'Tryck för HS' }}
             </a>
+            <a href="/substitute/{{ session.id }}" class="btn btn-warning">
+              {{ 'Sluda' if current_user.name in (session.substitutes.split(',') if session.substitutes else []) else 'Bänkvärmare' }}
+            </a>
+            {% if current_user.name == session.creator %}
             <form action="/delete_session/{{ session.id }}" method="POST" class="d-inline">
               <button type="submit" class="btn btn-danger">Ta bort</button>
             </form>
+            {% endif %}
           </div>
         </div>          
         {% endfor %}

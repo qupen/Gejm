@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <title>Statistik</title>
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Statistik</h2>
+        <p><strong>Antal spel denna vecka:</strong> {{ sessions_this_week }}</p>
+        <p><strong>Antal spel denna månad:</strong> {{ sessions_this_month }}</p>
+        <p><strong>Antal spel detta år:</strong> {{ sessions_this_year }}</p>
+        
+        <hr>
+
+        <p><strong>Du har kämpat i:</strong> {{ user_sessions }} spel</p>
+
+        <hr>
+
+        <p><strong>Mest sugen på att spela:</strong> 
+            {% if top_creator %}
+                {{ top_creator[0] }} ({{ top_creator[1] }} skapade bokningar)
+            {% else %}
+                Ingen skapad ännu
+            {% endif %}
+        </p>
+
+        <a href="/" class="btn btn-secondary">Tillbaka</a>
+    </div>
+</body>
+</html>

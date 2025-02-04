@@ -1,10 +1,12 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import smtplib
+import threading
 from email.mime.text import MIMEText
 
 app = Flask(__name__)
@@ -22,8 +24,10 @@ class Session(db.Model):
     time = db.Column(db.String(10), nullable=False)
     name = db.Column(db.String(50), nullable=False)
     attendees = db.Column(db.String(250), nullable=True)
+    substitutes = db.Column(db.String(250), nullable=True)
     creator = db.Column(db.String(50), nullable=False)
     
+migrate = Migrate(app, db)
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -51,39 +55,53 @@ def load_user(user_id):
     return db.session.get(User, user_id)
 
 def send_notification_email(session):
-    smtp_config = SMTPConfig.query.first()
-    if not smtp_config:
-        print("SMTP configuration is not set.")
-        return
+    session_data = {
+        "name": session.name,
+        "date": session.date.strftime('%Y-%m-%d'),
+        "time": session.time,
+        "creator": session.creator
+    }
 
-    subject = "Någon vill panga HS!"
-    body = (f"Be there or be a fyrkant!!!\n\n"
-            f"Spel: {session.name}\n"
-            f"Datum: {session.date}\n"
-            f"Tid: {session.time}\n"
-            f"HerreSkapare: {session.creator}\n")
+    def send_email():
+        with app.app_context():  # Flask-kontext i tråden
+            smtp_config = SMTPConfig.query.first()
+            if not smtp_config:
+                print("SMTP configuration is not set.")
+                return
 
-    sender_name = "HSGeneralen"
-    sender_email = smtp_config.smtp_username
+            subject = "Någon vill panga HS!"
+            body = (f"Be there or be en fyrkant!!!\n\n"
+                    f"Spel: {session_data['name']}\n"
+                    f"Datum: {session_data['date']}\n"
+                    f"Tid: {session_data['time']}\n"
+                    f"HerreSkapare: {session_data['creator']}\n")
 
-    recipient_emails = [user.email for user in User.query.filter(User.email.isnot(None)).all()]
+            sender_name = "HSGeneralen"
+            sender_email = smtp_config.smtp_username
 
-    try:
-        with smtplib.SMTP(smtp_config.smtp_server, int(smtp_config.smtp_port)) as server:
-            server.starttls()
-            server.login(smtp_config.smtp_username, smtp_config.smtp_password)
+            recipient_emails = [user.email for user in User.query.filter(User.email.isnot(None)).all()]
 
-            for recipient in recipient_emails:
-                msg = MIMEText(body)
-                msg["Subject"] = subject
-                msg["From"] = f"{sender_name} <{sender_email}>"
-                msg["To"] = recipient  # Skickar individuellt
+            try:
+                with smtplib.SMTP(smtp_config.smtp_server, int(smtp_config.smtp_port)) as server:
+                    server.starttls()
+                    server.login(smtp_config.smtp_username, smtp_config.smtp_password)
 
-                server.sendmail(sender_email, recipient, msg.as_string())
+                    for recipient in recipient_emails:
+                        msg = MIMEText(body)
+                        msg["Subject"] = subject
+                        msg["From"] = f"{sender_name} <{sender_email}>"
+                        msg["To"] = recipient
 
-        print("Notification emails sent successfully.")
-    except Exception as e:
-        print(f"Failed to send emails: {e}")
+                        server.sendmail(sender_email, recipient, msg.as_string())
+
+                print("Notification emails sent successfully.")
+            except Exception as e:
+                print(f"Failed to send emails: {e}")
+
+    
+    email_thread = threading.Thread(target=send_email)
+    email_thread.start()
+
 
 
 @app.route('/')
@@ -111,16 +129,27 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        if not User.query.filter_by(name=username).first():
-            is_admin = User.query.count() == 0  # First user becomes admin
-            new_user = User(name=username, email=email, is_admin=is_admin)
-            new_user.set_password(password)
-            db.session.add(new_user)
+
+        
+        existing_user = User.query.filter((User.name == username) | (User.email == email)).first()
+        
+        if existing_user:
+            return "Krock, någon han före", 400
+
+        is_admin = User.query.count() == 0  
+        new_user = User(name=username, email=email, is_admin=is_admin)
+        new_user.set_password(password)
+
+        db.session.add(new_user)
+        try:
             db.session.commit()
             return redirect(url_for('login'))
-        else:
-            return "User already exists", 400
+        except IntegrityError:
+            db.session.rollback()
+            return "Windows fel", 500
+
     return render_template('register.html')
+
 
 @app.route('/logout')
 @login_required
@@ -140,8 +169,24 @@ def add():
     db.session.add(new_session)
     db.session.commit()
 
-    # Send notification email
+    
     send_notification_email(new_session)
+
+    return redirect(url_for('index'))
+
+@app.route('/substitute/<int:id>')
+@login_required
+def substitute(id):
+    session = db.session.get(Session, id)
+    substitutes = session.substitutes.split(',') if session.substitutes else []
+
+    if current_user.name not in substitutes:
+        substitutes.append(current_user.name)
+    else:
+        substitutes.remove(current_user.name)
+
+    session.substitutes = ','.join(substitutes)
+    db.session.commit()
 
     return redirect(url_for('index'))
 
@@ -166,6 +211,37 @@ def attend(id):
     session.attendees = ','.join(attendees)
     db.session.commit()
     return redirect(url_for('index'))
+
+@app.route('/stats')
+@login_required
+def stats():
+    today = datetime.today()
+
+    start_of_week = today - timedelta(days=today.weekday())
+    start_of_month = today.replace(day=1)
+    start_of_year = today.replace(month=1, day=1)
+
+    sessions_this_week = Session.query.filter(Session.date >= start_of_week).count()
+    sessions_this_month = Session.query.filter(Session.date >= start_of_month).count()
+    sessions_this_year = Session.query.filter(Session.date >= start_of_year).count()
+
+    user_sessions = Session.query.filter(Session.attendees.contains(current_user.name)).count()
+
+    
+    top_creator = db.session.query(Session.creator, db.func.count(Session.id)) \
+        .group_by(Session.creator) \
+        .order_by(db.func.count(Session.id).desc()) \
+        .first()
+
+    return render_template(
+        'stats.html',
+        sessions_this_week=sessions_this_week,
+        sessions_this_month=sessions_this_month,
+        sessions_this_year=sessions_this_year,
+        user_sessions=user_sessions,
+        top_creator=top_creator
+    )
+
 
 @app.route('/config', methods=['GET', 'POST'])
 @login_required
@@ -195,6 +271,6 @@ def config():
     return render_template('config.html', smtp_config=smtp_config)
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
+    #with app.app_context():
+        #db.create_all()
     app.run(host='0.0.0.0', port=8000)

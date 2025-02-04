@@ -1,1 +1,10 @@
 __pycache__/app.cpython-313.pyc
+migrations/alembic.ini
+migrations/env.py
+migrations/README
+migrations/script.py.mako
+migrations/__pycache__/env.cpython-313.pyc
+migrations/versions/3f2ccf419be8_lägg_till_substitutes_kolumn_i_session_.py
+migrations/versions/__pycache__/3f2ccf419be8_lägg_till_substitutes_kolumn_i_session_.cpython-313.pyc
+instance/calendar.db
+__pycache__/app.cpython-313.pyc
