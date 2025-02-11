@@ -4,6 +4,10 @@ from sqlalchemy.exc import IntegrityError
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField
+from wtforms.validators import DataRequired, Email, Length
+from markupsafe import escape
 from datetime import datetime, timedelta
 import os
 import smtplib
@@ -50,6 +54,12 @@ class SMTPConfig(db.Model):
     smtp_port = db.Column(db.String(10), nullable=False)
     smtp_username = db.Column(db.String(100), nullable=False)
     smtp_password = db.Column(db.String(100), nullable=False)
+
+class RegistrationForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    submit = SubmitField('Register')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -127,9 +137,9 @@ def login():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
+        username = escape(request.form.get('username'))
+        email = escape(request.form.get('email'))
+        password = request.form.get('password')
 
         
         existing_user = User.query.filter((User.name == username) | (User.email == email)).first()
@@ -272,6 +282,4 @@ def config():
     return render_template('config.html', smtp_config=smtp_config)
 
 if __name__ == '__main__':
-    #with app.app_context():
-        #db.create_all()
     app.run(host='0.0.0.0', port=8000)
