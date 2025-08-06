@@ -2,6 +2,17 @@ Finns på dockerhub: docker pull mrsiv/gejmer
 
 Supersimpel "När kan vi spela spel" planerare.
 
+Kan köras direkt med python flask.
+Eller med docker.
+
+Exempel:
+docker run -d --name gejmer \
+  -p 8000:8000 \
+  -v $(pwd)/data:/app/data \
+  -e SECRET_KEY="$(cat /run/secrets/secret_key)" \
+  mrsiv/gejmer:latest
+
+
 <img width="831" height="699" alt="Screenshot 2025-01-25 222136" src="https://github.com/user-attachments/assets/e9575203-7bb3-4d97-a30f-ae80754df14a" />
 
 <img width="1467" height="823" alt="Screenshot 2025-01-23 182703" src="https://github.com/user-attachments/assets/d3c1cc60-6832-4e0a-a159-19be72a60b52" />
